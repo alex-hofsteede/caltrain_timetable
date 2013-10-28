@@ -110,8 +110,9 @@
 </style>
 <body>
   <h2 id="title"></h1>
-  <input type="checkbox" id="nb" class="direction" checked="true">Northbound</input>
-  <input type="checkbox" id="sb" class="direction" checked="true">Southbound</input>
+  <input type="radio" value="nb" name="direction" >Northbound</input>
+  <input type="radio" value="sb" name="direction" >Southbound</input>
+  <input type="radio" value="nbsb" name="direction" checked="true" >Both</input>
   <div id="timetable"></div>
   <div class="tooltip" id="tooltip">
     <div class="tt-station"></div>
@@ -159,7 +160,7 @@
 
     var tooltip = d3.select("#tooltip");
 
-    d3.selectAll(".direction").on("click", function() { activeTrains(selectedStations); draw();});
+    d3.selectAll("input[type=radio]").on("click", function() { activeTrains(selectedStations); draw();});
     // Make the chart
     var svg = d3.select("#timetable").append("svg")
     //.attr("width", "100%").attr("height", "100%")
@@ -387,7 +388,8 @@
 
     function activeTrains(stations) {
       trains.forEach(function(train) {
-          train.active = ((train.north && d3.select("#nb")[0][0].checked) || (!train.north && d3.select("#sb")[0][0].checked)) && 
+          bound = d3.select('[type=radio]:checked').attr('value') || "";
+          train.active = ((train.north && bound.indexOf('nb') >= 0) || (!train.north && bound.indexOf('sb') >= 0)) && 
           stations.every(function(s) {
           return train.stops.some(function(t) { return t.station == s; });
         });
