@@ -156,9 +156,9 @@
     var endOfDay = function () { date = new Date(); date.setHours(23,59,59,999); return date; }
     var startOfDay = function () { date = new Date(); date.setHours(0,0,0,0); return date; }
 
-    //var timeWindow = 3600 * 6 * 1000;
-    //var startDate = new Date(Math.max(Date.now() - (timeWindow/2), startOfDay().valueOf()));
-    //var endDate = new Date(Math.min(Date.now() + (timeWindow/2), endOfDay().valueOf()));
+    //prevent left scroll triggering 'back'
+    window.onmousewheel = function(event) {if (event.wheelDeltaX > 0 && document.body.scrollLeft == 0) {event.preventDefault();} }
+
     var x = d3.time.scale()
     .domain(d3.extent([currentTime(startOfDay()), currentTime(endOfDay())]))
     .range([0, width]);
@@ -186,7 +186,6 @@
     d3.selectAll("input[type=radio]").on("click", function() { activeTrains(selectedStations); draw();});
     // Make the chart
     var svg = d3.select("#timetable").append("svg")
-    //.attr("width", "100%").attr("height", "100%")
     .attr("width", width + margin.left + margin.right)
     .attr("height", height + margin.top + margin.bottom)
     .append("g")
