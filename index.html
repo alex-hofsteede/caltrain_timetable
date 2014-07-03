@@ -8,9 +8,27 @@
     margin:0;
   }
 
+  body {
+    overflow-y:hidden;
+  }
+
   #timetable {
-    width: 100%;
+    position:absolute;
+    top:100px;
     margin: 0 auto;
+  }
+
+  #fixed {
+    position:fixed;
+    top:0;
+    left:0;
+  }
+
+  #fixed-axis {
+    position:absolute;
+    width:140px;
+    top:100px;
+    left:0;
   }
 
   .axis path,
@@ -91,6 +109,7 @@
 
   .tooltip {
     display:block;
+    visibility:hidden;
     position: absolute;
     width: 120px;
     line-height: 20px;
@@ -109,11 +128,14 @@
 
 </style>
 <body>
-  <h2 id="title"></h1>
-  <input type="radio" value="nb" name="direction" >Northbound</input>
-  <input type="radio" value="sb" name="direction" >Southbound</input>
-  <input type="radio" value="nbsb" name="direction" checked="true" >Both</input>
   <div id="timetable"></div>
+  <div id="fixed">
+    <h2 id="title"></h1>
+    <input type="radio" value="nb" name="direction" >Northbound</input>
+    <input type="radio" value="sb" name="direction" >Southbound</input>
+    <input type="radio" value="nbsb" name="direction" checked="true" >Both</input>
+    <div id="fixed-axis"></div>
+  </div>
   <div class="tooltip" id="tooltip">
     <div class="tt-station"></div>
     <div class="tt-time"></div>
@@ -122,9 +144,9 @@
   <script>
 
     var allStations = ["San Francisco", "22nd Street", "Bayshore", "So. San Francisco", "San Bruno", "Millbrae", "Burlingame", "San Mateo", "Hayward Park", "Hillsdale", "Belmont", "San Carlos", "Redwood City", "Menlo Park", "Palo Alto", "California Ave", "San Antonio", "Mountain View", "Sunnyvale", "Lawrence", "Santa Clara", "College Park", "San Jose", "Tamien", "Capitol", "Blossom Hill", "Morgan Hill", "San Martin", "Gilroy"];
-    var margin = {top: 20, right: 0, bottom: 100, left: 0};
-    width = window.innerWidth - margin.left - margin.right,
-    height = Math.max(500, window.innerHeight - 40)- margin.top - margin.bottom;
+    var margin = {top: 10, right: 0, bottom: 100, left: 0};
+    width = 24 * 250; //window.innerWidth - margin.left - margin.right,
+    height = Math.max(500, window.innerHeight) - margin.top - margin.bottom - 103;
 
     var formatTime = d3.time.format("%H:%M");
     var parseTime = formatTime.parse;
@@ -134,10 +156,11 @@
     var endOfDay = function () { date = new Date(); date.setHours(23,59,59,999); return date; }
     var startOfDay = function () { date = new Date(); date.setHours(0,0,0,0); return date; }
 
-    var startDate = new Date(Math.max(Date.now() - 7200000, startOfDay().valueOf()));
-    var endDate = new Date(Math.min(Date.now() + 7200000, endOfDay().valueOf()));
+    //var timeWindow = 3600 * 6 * 1000;
+    //var startDate = new Date(Math.max(Date.now() - (timeWindow/2), startOfDay().valueOf()));
+    //var endDate = new Date(Math.min(Date.now() + (timeWindow/2), endOfDay().valueOf()));
     var x = d3.time.scale()
-    .domain(d3.extent([currentTime(startDate), currentTime(endDate)]))
+    .domain(d3.extent([currentTime(startOfDay()), currentTime(endOfDay())]))
     .range([0, width]);
 
     var y = d3.scale.ordinal()
@@ -167,14 +190,17 @@
     .attr("width", width + margin.left + margin.right)
     .attr("height", height + margin.top + margin.bottom)
     .append("g")
-    .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
-    .on("drag", function(d) { console.log(d) });
+    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+    var ysvg = d3.select("#fixed-axis").append("svg")
+    .attr("height", height + margin.top + margin.bottom)
+    .append("g")
+    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
     svg.append("svg:rect")
     .attr("class", "pane")
     .attr("width", width)
-    .attr("height", height)
-    .call(d3.behavior.zoom().x(x).on("zoom", zoom));
+    .attr("height", height);
     
     var trains = [];
     var selectedStations = [];
@@ -232,14 +258,13 @@
     .attr("class", "stops")
     .attr("clip-path", "url(#clip)");
 
-    svg.append("g")
+    ysvg.append("g")
     .attr("class", "y axis")
     .attr("transform", "translate(140,0)")
-    .call(yAxis)
-    .selectAll("text");
+    .call(yAxis);
 
     //bubbles behind stations
-    svg.selectAll(".y.axis g")
+    ysvg.selectAll(".y.axis g")
     .insert("svg:rect", ":first-child")
     .attr("class", "label-bg")
     .attr("width", 130)
@@ -269,6 +294,7 @@
         }));
         activeTrains(selectedStations);
         updateData(trains);
+        scrollToNow();
       });
     });
 
@@ -284,7 +310,12 @@
       .attr("x2", tx);
     }
 
+    function scrollToNow() {
+      window.scrollTo( x(currentTime()) - window.innerWidth/2, 0)
+    }
+
     function getTitle() {
+      
       if (!selectedStations || selectedStations.length == 0) {
         return "All Trains";
       } else {
@@ -322,7 +353,7 @@
       .attr("class", function(d) { return "stop " + (d.train.active ? "active" : ""); });
 
       //show active station names
-      svg.select('.y.axis').selectAll('text')
+      ysvg.select('.y.axis').selectAll('text')
       .attr("class", function(d) { return selectedStations.indexOf(d) > -1 ? "active" : ""});
 
       //show active station gridlines
@@ -363,7 +394,7 @@
       .on("mouseout", function(){return tooltip.style("visibility", "hidden");});
       stops.exit().remove();
 
-      svg.select('.y.axis').selectAll('text')
+      ysvg.select('.y.axis').selectAll('text')
       .on("click", toggleStation);
 
       draw();
@@ -385,13 +416,18 @@
       activeTrains(selectedStations);
       draw();
     }
+    
+    function directions() {
+      var bound = d3.select('[type=radio]:checked').attr('value') || "";
+      return {north: bound.indexOf('nb') >= 0, south: bound.indexOf('sb') >= 0};
+    }
 
     function activeTrains(stations) {
+      var dirs = directions();
       trains.forEach(function(train) {
-          bound = d3.select('[type=radio]:checked').attr('value') || "";
-          train.active = ((train.north && bound.indexOf('nb') >= 0) || (!train.north && bound.indexOf('sb') >= 0)) && 
+          train.active = ((train.north && dirs.north) || (!train.north && dirs.south)) && 
           stations.every(function(s) {
-          return train.stops.some(function(t) { return t.station == s; });
+            return train.stops.some(function(t) { return t.station == s; });
         });
       });
     }
