@@ -1,0 +1,125 @@
+html, body {
+    font: 14px sans-serif;
+    padding:0;
+    margin:0;
+}
+
+body {
+    overflow-y:hidden;
+}
+
+#timetable {
+    position:absolute;
+    top:100px;
+    margin: 0 auto;
+}
+
+#fixed {
+    position:fixed;
+    top:0;
+    left:0;
+}
+
+#fixed-axis {
+    position:absolute;
+    width:140px;
+    top:100px;
+    left:0;
+}
+
+.axis path,
+.axis line {
+    fill: none;
+    stroke: #000;
+    shape-rendering: crispEdges;
+}
+
+.x.axis path {
+    display: none;
+}
+
+.y.axis text{
+    cursor:pointer;
+}
+
+.y.axis .tick, .y.axis .domain
+{
+    display:none;
+}
+
+.y.axis .label-bg{
+    fill:#FFF;
+    stroke:#BBB;
+    stroke-width:1px;
+}
+
+.y.axis text.active {
+    font-weight:bold;
+    fill: ;
+}
+
+.gridline {
+    fill:none;
+    stroke: #DDD;
+    stroke-width:0.4px;
+}
+
+.gridline.active {
+    stroke-width:4px;
+}
+
+.route {
+    display:none;
+    fill: none;
+    stroke: red;
+    stroke-width: 4px;
+}
+
+.route.active { 
+    display:inline;
+}
+
+.stop {
+    display:none;
+    fill: white;
+    stroke: black;
+    stroke-width: 2px;
+    cursor:pointer;
+}
+
+.stop.active {
+    display:inline;
+}
+
+rect.pane {
+    cursor: move;
+    fill: none;
+    pointer-events: all;
+}
+
+.timeline {
+    fill: none;
+    stroke: #DDD;
+    stroke-width: 4px;
+}
+
+.tooltip {
+    display:block;
+    visibility:hidden;
+    position: absolute;
+    width: 120px;
+    line-height: 20px;
+    padding: 10px;
+    font-size: 14px;
+    text-align: center;
+    color: #333;
+    background: rgb(255, 255, 255);
+    border: 1px solid #EEE;
+    border-radius: 5px;
+    box-shadow: 0 2px 9px 0 rgba(0,0,0,0.15);
+}
+
+.tooltip.tt-station, .tooltip.tt-time {
+}
+
+

@@ -1,434 +1,314 @@
 <!DOCTYPE html>
-<meta charset="utf-8">
-<style>
-
-  html, body {
-    font: 14px sans-serif;
-    padding:0;
-    margin:0;
-  }
-
-  body {
-    overflow-y:hidden;
-  }
-
-  #timetable {
-    position:absolute;
-    top:100px;
-    margin: 0 auto;
-  }
-
-  #fixed {
-    position:fixed;
-    top:0;
-    left:0;
-  }
-
-  #fixed-axis {
-    position:absolute;
-    width:140px;
-    top:100px;
-    left:0;
-  }
-
-  .axis path,
-  .axis line {
-    fill: none;
-    stroke: #000;
-    shape-rendering: crispEdges;
-  }
-
-  .x.axis path {
-    display: none;
-  }
-
-  .y.axis text{
-    cursor:pointer;
-  }
-
-  .y.axis .tick, .y.axis .domain
-  {
-    display:none;
-  }
-
-  .y.axis .label-bg{
-    fill:#FFF;
-    stroke:#BBB;
-    stroke-width:1px;
-  }
-
-  .y.axis text.active {
-    font-weight:bold;
-    fill: ;
-  }
-
-  .gridline {
-    fill:none;
-    stroke: #DDD;
-    stroke-width:0.4px;
-  }
-
-  .gridline.active {
-    stroke-width:4px;
-  }
-
-  .route {
-    display:none;
-    fill: none;
-    stroke: red;
-    stroke-width: 4px;
-  }
-
-  .route.active { 
-    display:inline;
-  }
-
-  .stop {
-    display:none;
-    fill: white;
-    stroke: black;
-    stroke-width: 2px;
-    cursor:pointer;
-  }
-
-  .stop.active {
-    display:inline;
-  }
-
-  rect.pane {
-    cursor: move;
-    fill: none;
-    pointer-events: all;
-  }
-
-  .timeline {
-    fill: none;
-    stroke: #DDD;
-    stroke-width: 4px;
-  }
-
-  .tooltip {
-    display:block;
-    visibility:hidden;
-    position: absolute;
-    width: 120px;
-    line-height: 20px;
-    padding: 10px;
-    font-size: 14px;
-    text-align: center;
-    color: #333;
-    background: rgb(255, 255, 255);
-    border: 1px solid #EEE;
-    border-radius: 5px;
-    box-shadow: 0 2px 9px 0 rgba(0,0,0,0.15);
-  }
-
-  .tooltip.tt-station, .tooltip.tt-time {
-  }
-
-</style>
-<body>
-  <div id="timetable"></div>
-  <div id="fixed">
-    <h2 id="title"></h1>
-    <input type="radio" value="nb" name="direction" >Northbound</input>
-    <input type="radio" value="sb" name="direction" >Southbound</input>
-    <input type="radio" value="nbsb" name="direction" checked="true" >Both</input>
-    <div id="fixed-axis"></div>
-  </div>
-  <div class="tooltip" id="tooltip">
-    <div class="tt-station"></div>
-    <div class="tt-time"></div>
-  </div>
-  <script src="d3.js"></script>
-  <script>
-
-    var allStations = ["San Francisco", "22nd Street", "Bayshore", "So. San Francisco", "San Bruno", "Millbrae", "Burlingame", "San Mateo", "Hayward Park", "Hillsdale", "Belmont", "San Carlos", "Redwood City", "Menlo Park", "Palo Alto", "California Ave", "San Antonio", "Mountain View", "Sunnyvale", "Lawrence", "Santa Clara", "College Park", "San Jose", "Tamien", "Capitol", "Blossom Hill", "Morgan Hill", "San Martin", "Gilroy"];
-    var margin = {top: 10, right: 0, bottom: 100, left: 0};
-    width = 24 * 250; //window.innerWidth - margin.left - margin.right,
-    height = Math.max(500, window.innerHeight) - margin.top - margin.bottom - 103;
-
-    var formatTime = d3.time.format("%H:%M");
-    var parseTime = formatTime.parse;
-    var formatTimeSeconds = d3.time.format("%H:%M:%S");
-    var parseTimeSeconds = formatTimeSeconds.parse;
-    var currentTime = function (date) { date = date || new Date(); return parseTimeSeconds(formatTimeSeconds(date)); };
-    var endOfDay = function () { date = new Date(); date.setHours(23,59,59,999); return date; }
-    var startOfDay = function () { date = new Date(); date.setHours(0,0,0,0); return date; }
-
-    //prevent left scroll triggering 'back'
-    window.onmousewheel = function(event) {if (event.wheelDeltaX > 0 && document.body.scrollLeft == 0) {event.preventDefault();} }
-
-    var x = d3.time.scale()
-    .domain(d3.extent([currentTime(startOfDay()), currentTime(endOfDay())]))
-    .range([0, width]);
-
-    var y = d3.scale.ordinal()
-    .domain(allStations)
-    .range(d3.range(0,height,height/allStations.length));
-    //.range([0,5,10,16,20,24,28,31,34,37,40,43,48,53,56,60,64,68,73,77,82,85,92,98,105,111,124,130,143].map(function(x){return Math.round(x * height/143.0)}))
-
-    var xAxis = d3.svg.axis()
-    .scale(x)
-    .orient("bottom")
-    .ticks(10);
-
-    var yAxis = d3.svg.axis()
-    .scale(y)
-    .orient("left")
-
-    var line = d3.svg.line()
-    .x(function(d) { return x(d.time); })
-    .y(function(d) { return y(d.station); });
-
-    var tooltip = d3.select("#tooltip");
-
-    d3.selectAll("input[type=radio]").on("click", function() { activeTrains(selectedStations); draw();});
-    // Make the chart
-    var svg = d3.select("#timetable").append("svg")
-    .attr("width", width + margin.left + margin.right)
-    .attr("height", height + margin.top + margin.bottom)
-    .append("g")
-    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
-
-    var ysvg = d3.select("#fixed-axis").append("svg")
-    .attr("height", height + margin.top + margin.bottom)
-    .append("g")
-    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
-
-    svg.append("svg:rect")
-    .attr("class", "pane")
-    .attr("width", width)
-    .attr("height", height);
-    
-    var trains = [];
-    var selectedStations = [];
-
-    svg.append("g")
-    .attr("class", "x axis")
-    .attr("transform", "translate(0," + height + ")")
-    .call(xAxis);
-
-    svg.append("g")
-    .attr("class", "gridlines");
-
-    //draw gridlines
-    svg.select(".gridlines").selectAll(".gridline.y")
-    .data(y.domain())
-    .enter()
-    .append("line")
-    .attr("class","gridline y")
-    .attr("x1", 0)
-    .attr("x2", width)
-    .attr("y1", y)
-    .attr("y2", y);
-
-    svg.select(".gridlines").selectAll(".gridline.x")
-    .data(x.ticks(10))
-    .enter()
-    .append("line")
-    .attr("class","gridline x")
-    .attr("y1", 0)
-    .attr("y2", height)
-    .attr("x1", x)
-    .attr("x2", x);
-
-    svg.append("svg:clipPath")
-    .attr("id", "clip")
-    .append("svg:rect")
-    .attr("x", 0)
-    .attr("y", -5)
-    .attr("width", width)
-    .attr("height", height+10);
-
-    var timeLine = svg.append("svg:line")
-    .attr("class","timeline")
-    .attr("y1", 0)
-    .attr("y2", height);
-    
-    adjustTime();
-    setInterval(adjustTime, 1000);
-
-    svg.append("g")
-    .attr("class", "routes")
-    .attr("clip-path", "url(#clip)")
-
-    svg.append("g")
-    .attr("class", "stops")
-    .attr("clip-path", "url(#clip)");
-
-    ysvg.append("g")
-    .attr("class", "y axis")
-    .attr("transform", "translate(140,0)")
-    .call(yAxis);
-
-    //bubbles behind stations
-    ysvg.selectAll(".y.axis g")
-    .insert("svg:rect", ":first-child")
-    .attr("class", "label-bg")
-    .attr("width", 130)
-    .attr("height", 18)
-    .attr("rx", 5)
-    .attr("ry", 5)
-    .attr("x", -130)
-    .attr("y", -9)
-
-    var files = [{name:"caltrain-nb.csv", north:true}, {name:"caltrain-sb.csv", north:false}]
-    files.forEach(function(file) {
-      d3.csv(file.name, function(data, error) {
-        data.forEach(function(row){
-          for (k in row) {if(k != 'Train' && row[k] != null) row[k] = parseTime(row[k])}
-        });
-
-        trains = trains.concat( data.map(function(train) {
-          var t = { name:train['Train'] , north:file.north};
-          t.stops = y.domain().map(function(station) {
-            return { 
-              station:station, 
-              time:train[station], 
-              train:t
-            };
-          }).filter(function(train){return train.time != null})
-          return t;
-        }));
-        activeTrains(selectedStations);
-        updateData(trains);
-        scrollToNow();
-      });
-    });
-
-
-    function zoom() {
-      //d3.event.transition(x); // TODO d3.behavior.zoom should support extents
-      draw();
-    }
-
-    function adjustTime() {
-      var tx = x(currentTime());
-      timeLine.attr("x1", tx)
-      .attr("x2", tx);
-    }
-
-    function scrollToNow() {
-      window.scrollTo( x(currentTime()) - window.innerWidth/2, 0)
-    }
-
-    function getTitle() {
-      
-      if (!selectedStations || selectedStations.length == 0) {
-        return "All Trains";
-      } else {
-        var n = selectedStations.length;
-        var ss = selectedStations.slice();
-        if (n > 1) {
-          ss[n-1] = "and " + ss[n-1];
-        }
-        return "Trains stopping at " + ss.join( n==2 ? " " : ", ")
-      }
-    }
-
-    function draw() {
-      //adjust current time line
-      adjustTime();
-
-      //redraw axes
-      svg.select("g.x.axis").call(xAxis);
-      svg.select("g.y.axis").call(yAxis);
-
-      //redraw X gridlines
-      svg.select(".gridlines").selectAll(".gridline.x")
-      .data(x.ticks(10))
-      .attr("x1", x)
-      .attr("x2", x);
-
-      //show active routes
-      svg.select('.routes').selectAll(".route").attr("d", function(d) { return line(d.stops); })
-      .attr("class", function(d) { return "route " + (d.active ? "active" : "");})
-
-      //show stops on active routes
-      svg.select('.stops').selectAll(".stop")
-      .attr("cx", function(d) { return x(d.time); })
-      .attr("cy", function(d) { return y(d.station); })
-      .attr("class", function(d) { return "stop " + (d.train.active ? "active" : ""); });
-
-      //show active station names
-      ysvg.select('.y.axis').selectAll('text')
-      .attr("class", function(d) { return selectedStations.indexOf(d) > -1 ? "active" : ""});
-
-      //show active station gridlines
-      svg.select('.gridlines').selectAll('.gridline.y')
-      .attr("class", function(d) { return 'gridline y ' + (selectedStations.indexOf(d) > -1 ? "active" : "");});
-
-      //show text description
-      d3.select('#title').text(getTitle());
-    }
-
-    function updateData(trains){
-      var trainPaths = svg.select("g.routes").selectAll(".route")
-      .data(trains)
-
-      trainPaths.enter().append("path")
-      .attr("class", function(d) { return "route " + (d.active ? "active" : "");})
-      .attr("clip-path", "url(#clip)")
-      .attr("d", function(d) { return line(d.stops); })
-
-      var stops = svg.select("g.stops").selectAll(".stop")
-      .data(d3.merge(trains.map(function(t){ return t.stops;})))
-
-      stops.enter().append("circle")
-      .attr("class","stop")
-      .attr("r",4)
-      .attr("cx", function(d) { return x(d.time); })
-      .attr("cy", function(d) { return y(d.station); })
-      .attr("clip-path", "url(#clip)")
-      .on("click", toggleStation)
-      .on("mouseover", function(d){
-        tooltip.style("visibility", "visible")
-        .style("top", (event.pageY-10)+"px")
-        .style("left",(event.pageX+10)+"px");
-        tooltip.select(".tt-station").text(d.station);
-        tooltip.select(".tt-time").text(formatTime(d.time));
-
-      })
-      .on("mouseout", function(){return tooltip.style("visibility", "hidden");});
-      stops.exit().remove();
-
-      ysvg.select('.y.axis').selectAll('text')
-      .on("click", toggleStation);
-
-      draw();
-    }
-
-    /* Either pass a string with a station name or a data object 
-    with a 'station' property containing the station name
-    */
-    function toggleStation(data){
-      if(typeof(data) == "object") {
-        data = data.station;
-      }
-      var i = selectedStations.indexOf(data);
-      if(i == -1){
-        selectedStations.push(data);
-        } else {
-        selectedStations.splice(i,1);
-      }
-      activeTrains(selectedStations);
-      draw();
-    }
-    
-    function directions() {
-      var bound = d3.select('[type=radio]:checked').attr('value') || "";
-      return {north: bound.indexOf('nb') >= 0, south: bound.indexOf('sb') >= 0};
-    }
-
-    function activeTrains(stations) {
-      var dirs = directions();
-      trains.forEach(function(train) {
-          train.active = ((train.north && dirs.north) || (!train.north && dirs.south)) && 
-          stations.every(function(s) {
-            return train.stops.some(function(t) { return t.station == s; });
-        });
-      });
-    }
-
-  </script>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <link rel="stylesheet" href="assets/css/main.css">
+    </head>
+    <body>
+        <div id="timetable"></div>
+        <div id="fixed">
+            <h2 id="title"></h1>
+            <input type="radio" value="nb" name="direction" >Northbound</input>
+            <input type="radio" value="sb" name="direction" >Southbound</input>
+            <input type="radio" value="nbsb" name="direction" checked="true" >Both</input>
+            <div id="fixed-axis"></div>
+        </div>
+        <div class="tooltip" id="tooltip">
+            <div class="tt-station"></div>
+            <div class="tt-time"></div>
+        </div>
+        <script src="d3.js"></script>
+        <script>
+
+            var allStations = ["San Francisco", "22nd Street", "Bayshore", "So. San Francisco", "San Bruno", "Millbrae", "Burlingame", "San Mateo", "Hayward Park", "Hillsdale", "Belmont", "San Carlos", "Redwood City", "Menlo Park", "Palo Alto", "California Ave", "San Antonio", "Mountain View", "Sunnyvale", "Lawrence", "Santa Clara", "College Park", "San Jose", "Tamien", "Capitol", "Blossom Hill", "Morgan Hill", "San Martin", "Gilroy"];
+            var margin = {top: 10, right: 0, bottom: 100, left: 0};
+            width = 24 * 250; //window.innerWidth - margin.left - margin.right,
+            height = Math.max(500, window.innerHeight) - margin.top - margin.bottom - 103;
+
+            var formatTime = d3.time.format("%H:%M");
+            var parseTime = formatTime.parse;
+            var formatTimeSeconds = d3.time.format("%H:%M:%S");
+            var parseTimeSeconds = formatTimeSeconds.parse;
+            var currentTime = function (date) { date = date || new Date(); return parseTimeSeconds(formatTimeSeconds(date)); };
+            var endOfDay = function () { date = new Date(); date.setHours(23,59,59,999); return date; }
+            var startOfDay = function () { date = new Date(); date.setHours(0,0,0,0); return date; }
+
+            //prevent left scroll triggering 'back'
+            window.onmousewheel = function(event) {if (event.wheelDeltaX > 0 && document.body.scrollLeft == 0) {event.preventDefault();} }
+
+            var x = d3.time.scale()
+            .domain(d3.extent([currentTime(startOfDay()), currentTime(endOfDay())]))
+            .range([0, width]);
+
+            var y = d3.scale.ordinal()
+            .domain(allStations)
+            .range(d3.range(0,height,height/allStations.length));
+            //.range([0,5,10,16,20,24,28,31,34,37,40,43,48,53,56,60,64,68,73,77,82,85,92,98,105,111,124,130,143].map(function(x){return Math.round(x * height/143.0)}))
+
+            var xAxis = d3.svg.axis()
+            .scale(x)
+            .orient("bottom")
+            .ticks(10);
+
+            var yAxis = d3.svg.axis()
+            .scale(y)
+            .orient("left")
+
+            var line = d3.svg.line()
+            .x(function(d) { return x(d.time); })
+            .y(function(d) { return y(d.station); });
+
+            var tooltip = d3.select("#tooltip");
+
+            d3.selectAll("input[type=radio]").on("click", function() { activeTrains(selectedStations); draw();});
+            // Make the chart
+            var svg = d3.select("#timetable").append("svg")
+            .attr("width", width + margin.left + margin.right)
+            .attr("height", height + margin.top + margin.bottom)
+            .append("g")
+            .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+            var ysvg = d3.select("#fixed-axis").append("svg")
+            .attr("height", height + margin.top + margin.bottom)
+            .append("g")
+            .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+            svg.append("svg:rect")
+            .attr("class", "pane")
+            .attr("width", width)
+            .attr("height", height);
+
+            var trains = [];
+            var selectedStations = [];
+
+            svg.append("g")
+            .attr("class", "x axis")
+            .attr("transform", "translate(0," + height + ")")
+            .call(xAxis);
+
+            svg.append("g")
+            .attr("class", "gridlines");
+
+            //draw gridlines
+            svg.select(".gridlines").selectAll(".gridline.y")
+            .data(y.domain())
+            .enter()
+            .append("line")
+            .attr("class","gridline y")
+            .attr("x1", 0)
+            .attr("x2", width)
+            .attr("y1", y)
+            .attr("y2", y);
+
+            svg.select(".gridlines").selectAll(".gridline.x")
+            .data(x.ticks(10))
+            .enter()
+            .append("line")
+            .attr("class","gridline x")
+            .attr("y1", 0)
+            .attr("y2", height)
+            .attr("x1", x)
+            .attr("x2", x);
+
+            svg.append("svg:clipPath")
+            .attr("id", "clip")
+            .append("svg:rect")
+            .attr("x", 0)
+            .attr("y", -5)
+            .attr("width", width)
+            .attr("height", height+10);
+
+             svg.append("svg:line")
+            .attr("id","timeline")
+            .attr("class","timeline")
+            .attr("y1", 0)
+            .attr("y2", height);
+
+            adjustTime();
+            setInterval(adjustTime, 1000);
+
+            svg.append("g")
+            .attr("class", "routes")
+            .attr("clip-path", "url(#clip)")
+
+            svg.append("g")
+            .attr("class", "stops")
+            .attr("clip-path", "url(#clip)");
+
+            ysvg.append("g")
+            .attr("class", "y axis")
+            .attr("transform", "translate(140,0)")
+            .call(yAxis);
+
+            //bubbles behind stations
+            ysvg.selectAll(".y.axis g")
+            .insert("svg:rect", ":first-child")
+            .attr("class", "label-bg")
+            .attr("width", 130)
+            .attr("height", 18)
+            .attr("rx", 5)
+            .attr("ry", 5)
+            .attr("x", -130)
+            .attr("y", -9)
+
+            var files = [{name:"caltrain-nb.csv", north:true}, {name:"caltrain-sb.csv", north:false}]
+            files.forEach(function(file) {
+                d3.csv(file.name, function(data, error) {
+                    data.forEach(function(row){
+                        for (k in row) {if(k != 'Train' && row[k] != null) row[k] = parseTime(row[k])}
+                    });
+
+                    trains = trains.concat( data.map(function(train) {
+                        var t = { name:train['Train'] , north:file.north};
+                        t.stops = y.domain().map(function(station) {
+                            return { 
+                                station:station, 
+                                time:train[station], 
+                                train:t
+                            };
+                        }).filter(function(train){return train.time != null})
+                        return t;
+                    }));
+                    activeTrains(selectedStations);
+                    updateData(trains);
+                    scrollToNow();
+                });
+            });
+
+
+            function zoom() {
+                //d3.event.transition(x); // TODO d3.behavior.zoom should support extents
+                draw();
+            }
+
+            function adjustTime() {
+                var tx = x(currentTime());
+                d3.select('#timeline').attr("x1", tx)
+                .attr("x2", tx);
+            }
+
+            function scrollToNow() {
+                window.scrollTo( x(currentTime()) - window.innerWidth/2, 0)
+            }
+
+            function getTitle() {
+
+                if (!selectedStations || selectedStations.length == 0) {
+                    return "All Trains";
+                    } else {
+                    var n = selectedStations.length;
+                    var ss = selectedStations.slice();
+                    if (n > 1) {
+                        ss[n-1] = "and " + ss[n-1];
+                    }
+                    return "Trains stopping at " + ss.join( n==2 ? " " : ", ")
+                }
+            }
+
+            function draw() {
+                //adjust current time line
+                adjustTime();
+
+                //redraw axes
+                svg.select("g.x.axis").call(xAxis);
+                svg.select("g.y.axis").call(yAxis);
+
+                //redraw X gridlines
+                svg.select(".gridlines").selectAll(".gridline.x")
+                .data(x.ticks(10))
+                .attr("x1", x)
+                .attr("x2", x);
+
+                //show active routes
+                svg.select('.routes').selectAll(".route").attr("d", function(d) { return line(d.stops); })
+                .attr("class", function(d) { return "route " + (d.active ? "active" : "");})
+
+                //show stops on active routes
+                svg.select('.stops').selectAll(".stop")
+                .attr("cx", function(d) { return x(d.time); })
+                .attr("cy", function(d) { return y(d.station); })
+                .attr("class", function(d) { return "stop " + (d.train.active ? "active" : ""); });
+
+                //show active station names
+                ysvg.select('.y.axis').selectAll('text')
+                .attr("class", function(d) { return selectedStations.indexOf(d) > -1 ? "active" : ""});
+
+                //show active station gridlines
+                svg.select('.gridlines').selectAll('.gridline.y')
+                .attr("class", function(d) { return 'gridline y ' + (selectedStations.indexOf(d) > -1 ? "active" : "");});
+
+                //show text description
+                d3.select('#title').text(getTitle());
+            }
+
+            function updateData(trains){
+                var trainPaths = svg.select("g.routes").selectAll(".route")
+                .data(trains)
+
+                trainPaths.enter().append("path")
+                .attr("class", function(d) { return "route " + (d.active ? "active" : "");})
+                .attr("clip-path", "url(#clip)")
+                .attr("d", function(d) { return line(d.stops); })
+
+                var stops = svg.select("g.stops").selectAll(".stop")
+                .data(d3.merge(trains.map(function(t){ return t.stops;})))
+
+                stops.enter().append("circle")
+                .attr("class","stop")
+                .attr("r",4)
+                .attr("cx", function(d) { return x(d.time); })
+                .attr("cy", function(d) { return y(d.station); })
+                .attr("clip-path", "url(#clip)")
+                .on("click", toggleStation)
+                .on("mouseover", function(d){
+                tooltip.style("visibility", "visible")
+                .style("top", (event.pageY-10)+"px")
+                .style("left",(event.pageX+10)+"px");
+                tooltip.select(".tt-station").text(d.station);
+                tooltip.select(".tt-time").text(formatTime(d.time));
+
+                })
+                .on("mouseout", function(){return tooltip.style("visibility", "hidden");});
+                stops.exit().remove();
+
+                ysvg.select('.y.axis').selectAll('text')
+                .on("click", toggleStation);
+
+                draw();
+                }
+
+                /* Either pass a string with a station name or a data object 
+                with a 'station' property containing the station name
+                */
+                function toggleStation(data){
+                if(typeof(data) == "object") {
+                data = data.station;
+                }
+                var i = selectedStations.indexOf(data);
+                if(i == -1){
+                selectedStations.push(data);
+                } else {
+                selectedStations.splice(i,1);
+                }
+                activeTrains(selectedStations);
+                draw();
+                }
+
+                function directions() {
+                var bound = d3.select('[type=radio]:checked').attr('value') || "";
+                return {north: bound.indexOf('nb') >= 0, south: bound.indexOf('sb') >= 0};
+                }
+
+                function activeTrains(stations) {
+                var dirs = directions();
+                trains.forEach(function(train) {
+                train.active = ((train.north && dirs.north) || (!train.north && dirs.south)) && 
+                stations.every(function(s) {
+                return train.stops.some(function(t) { return t.station == s; });
+                });
+                });
+                }
+
+            </script>
+        </body>
+    </html>
