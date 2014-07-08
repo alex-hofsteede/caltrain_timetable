@@ -103,6 +103,22 @@ rect.pane {
     stroke-width: 4px;
 }
 
+.clock .face {
+    fill: none;
+    stroke: #000;
+    stroke-width: 2;
+}
+
+.clock .center {
+    fill: #000;
+}
+
+.clock .hand {
+    fill: #000;
+    stroke: #000;
+    stroke-width: 1.5;
+}
+
 .tooltip {
     display:block;
     visibility:hidden;

@@ -124,6 +124,24 @@
             .attr("y1", 0)
             .attr("y2", height);
 
+            var clock = svg.append('g')
+            .attr("id","clock")
+            .attr("class","clock");
+            clock.append("svg:circle")
+            .attr("class", "face")
+            .attr("r", 10);
+            clock.append("svg:line")
+            .attr("class", "minute hand")
+            .attr("x1", 0)
+            .attr("y1", 0);
+            clock.append("svg:line")
+            .attr("class", "hour hand")
+            .attr("x1", 0)
+            .attr("y1", 0);
+            clock.append("svg:circle")
+            .attr("class", "center")
+            .attr("r", 1);
+
             adjustTime();
             setInterval(adjustTime, 1000);
 
@@ -182,9 +200,26 @@
             }
 
             function adjustTime() {
+                // Timeline
                 var tx = x(currentTime());
                 d3.select('#timeline').attr("x1", tx)
                 .attr("x2", tx);
+
+                // Clock
+                d3.select('#clock').attr("transform", "translate("+tx+","+(height + 12)+")")
+                var minute = (currentTime().getMinutes() * 60 + currentTime().getSeconds()) / 3600 * 2 * Math.PI;
+                d3.select('#clock .minute.hand')
+                .attr("x1", 8 * Math.sin(minute))
+                .attr("y1", 8 * -Math.cos(minute))
+                .attr("x2", 2 * Math.sin(minute + Math.PI))
+                .attr("y2", 2 * -Math.cos(minute + Math.PI))
+
+                var hour = (currentTime().getHours() * 60 + currentTime().getMinutes()) / 720 * 2 * Math.PI;
+                d3.select('#clock .hour.hand')
+                .attr("x1", 6 * Math.sin(hour))
+                .attr("y1", 6 * -Math.cos(hour))
+                .attr("x2", 2 * Math.sin(hour + Math.PI))
+                .attr("y2", 2 * -Math.cos(hour + Math.PI))
             }
 
             function scrollToNow() {
