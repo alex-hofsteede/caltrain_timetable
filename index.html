@@ -25,16 +25,12 @@
             width = 24 * 250; //window.innerWidth - margin.left - margin.right,
             height = Math.max(500, window.innerHeight) - margin.top - margin.bottom - 103;
 
-            var formatTime = d3.time.format("%H:%M");
-            var parseTime = formatTime.parse;
+            var formatTime = d3.time.format("%-I:%M %p");
             var formatTimeSeconds = d3.time.format("%H:%M:%S");
             var parseTimeSeconds = formatTimeSeconds.parse;
-            var currentTime = function (date) { date = date || new Date(); return parseTimeSeconds(formatTimeSeconds(date)); };
+            var currentTime = function (date) { date = date || new Date(); return parseTimeSeconds(formatTimeSeconds(date));};
             var endOfDay = function () { date = new Date(); date.setHours(23,59,59,999); return date; }
             var startOfDay = function () { date = new Date(); date.setHours(0,0,0,0); return date; }
-
-            //prevent left scroll triggering 'back'
-            window.onmousewheel = function(event) {if (event.wheelDeltaX > 0 && document.body.scrollLeft == 0) {event.preventDefault();} }
 
             var x = d3.time.scale()
             .domain(d3.extent([currentTime(startOfDay()), currentTime(endOfDay())]))
@@ -48,7 +44,8 @@
             var xAxis = d3.svg.axis()
             .scale(x)
             .orient("bottom")
-            .ticks(10);
+            .ticks(d3.time.hours, 1)
+            .tickFormat(formatTime);
 
             var yAxis = d3.svg.axis()
             .scale(y)
@@ -169,27 +166,33 @@
             .attr("x", -130)
             .attr("y", -9)
 
+            //prevent left scroll triggering 'back'
+            window.onmousewheel = function(event) {if (event.wheelDeltaX > 0 && document.body.scrollLeft == 0) {event.preventDefault();} }
+            window.scrollTo( x(currentTime()) - window.innerWidth/2, 0)
+
+            var parseTime = d3.time.format("%H:%M").parse;
             var files = [{name:"caltrain-nb.csv", north:true}, {name:"caltrain-sb.csv", north:false}]
             files.forEach(function(file) {
-                d3.csv(file.name, function(data, error) {
-                    data.forEach(function(row){
-                        for (k in row) {if(k != 'Train' && row[k] != null) row[k] = parseTime(row[k])}
-                    });
+                d3.csv(file.name, function(error, data) {
+                    if (data) {
+                        data.forEach(function(row){
+                            for (k in row) {if(k != 'Train' && row[k] != null) row[k] = parseTime(row[k])}
+                        });
 
-                    trains = trains.concat( data.map(function(train) {
-                        var t = { name:train['Train'] , north:file.north};
-                        t.stops = y.domain().map(function(station) {
-                            return { 
-                                station:station, 
-                                time:train[station], 
-                                train:t
-                            };
-                        }).filter(function(train){return train.time != null})
-                        return t;
-                    }));
-                    activeTrains(selectedStations);
-                    updateData(trains);
-                    scrollToNow();
+                        trains = trains.concat( data.map(function(train) {
+                            var t = { name:train['Train'] , north:file.north};
+                            t.stops = y.domain().map(function(station) {
+                                return {
+                                    station:station,
+                                    time:train[station],
+                                    train:t
+                                };
+                            }).filter(function(train){return train.time != null})
+                            return t;
+                        }));
+                        activeTrains(selectedStations);
+                        updateData(trains);
+                    }
                 });
             });
 
@@ -206,7 +209,7 @@
                 .attr("x2", tx);
 
                 // Clock
-                d3.select('#clock').attr("transform", "translate("+tx+","+(height + 12)+")")
+                d3.select('#clock').attr("transform", "translate("+tx+","+(height + 35)+")")
                 var minute = (currentTime().getMinutes() * 60 + currentTime().getSeconds()) / 3600 * 2 * Math.PI;
                 d3.select('#clock .minute.hand')
                 .attr("x1", 8 * Math.sin(minute))
@@ -220,10 +223,6 @@
                 .attr("y1", 6 * -Math.cos(hour))
                 .attr("x2", 2 * Math.sin(hour + Math.PI))
                 .attr("y2", 2 * -Math.cos(hour + Math.PI))
-            }
-
-            function scrollToNow() {
-                window.scrollTo( x(currentTime()) - window.innerWidth/2, 0)
             }
 
             function getTitle() {
