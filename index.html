@@ -295,11 +295,11 @@
                 .attr("clip-path", "url(#clip)")
                 .on("click", toggleStation)
                 .on("mouseover", function(d){
-                tooltip.style("visibility", "visible")
-                .style("top", (event.pageY-10)+"px")
-                .style("left",(event.pageX+10)+"px");
-                tooltip.select(".tt-station").text(d.station);
-                tooltip.select(".tt-time").text(formatTime(d.time));
+                    tooltip.style("visibility", "visible")
+                    .style("top", (event.pageY-10)+"px")
+                    .style("left",(event.pageX+10)+"px");
+                    tooltip.select(".tt-station").text(d.station);
+                    tooltip.select(".tt-time").text(formatTime(d.time));
 
                 })
                 .on("mouseout", function(){return tooltip.style("visibility", "hidden");});
@@ -309,40 +309,40 @@
                 .on("click", toggleStation);
 
                 draw();
-                }
+            }
 
-                /* Either pass a string with a station name or a data object 
-                with a 'station' property containing the station name
-                */
-                function toggleStation(data){
+            /* Either pass a string with a station name or a data object 
+            with a 'station' property containing the station name
+            */
+            function toggleStation(data){
                 if(typeof(data) == "object") {
-                data = data.station;
+                    data = data.station;
                 }
                 var i = selectedStations.indexOf(data);
                 if(i == -1){
-                selectedStations.push(data);
-                } else {
-                selectedStations.splice(i,1);
+                    selectedStations.push(data);
+                    } else {
+                    selectedStations.splice(i,1);
                 }
                 activeTrains(selectedStations);
                 draw();
-                }
+            }
 
-                function directions() {
+            function directions() {
                 var bound = d3.select('[type=radio]:checked').attr('value') || "";
                 return {north: bound.indexOf('nb') >= 0, south: bound.indexOf('sb') >= 0};
-                }
+            }
 
-                function activeTrains(stations) {
+            function activeTrains(stations) {
                 var dirs = directions();
                 trains.forEach(function(train) {
-                train.active = ((train.north && dirs.north) || (!train.north && dirs.south)) && 
-                stations.every(function(s) {
-                return train.stops.some(function(t) { return t.station == s; });
+                    train.active = ((train.north && dirs.north) || (!train.north && dirs.south)) && 
+                    stations.every(function(s) {
+                        return train.stops.some(function(t) { return t.station == s; });
+                    });
                 });
-                });
-                }
+            }
 
-            </script>
-        </body>
-    </html>
+        </script>
+    </body>
+</html>
