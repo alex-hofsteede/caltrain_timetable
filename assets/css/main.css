@@ -42,14 +42,14 @@ body {
     cursor:pointer;
 }
 
-.y.axis .tick, .y.axis .domain
+.y.axis .tick line, .y.axis .domain
 {
     display:none;
 }
 
 .y.axis .label-bg{
-    fill:#FFF;
-    stroke:#BBB;
+    fill:#C8C8C8;
+    stroke:#C8C8C8;
     stroke-width:1px;
 }
 
